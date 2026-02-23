@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plant Disease Detection</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: #ffffff;
+            width: 500px;
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #1e3c72;
+        }
+
+        .upload-box {
+            border: 2px dashed #2a5298;
+            padding: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .upload-box:hover {
+            background: #f0f6ff;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #preview {
+            margin: 20px auto 0 auto;
+            width: 100%;
+            max-width: 320px;
+            max-height: 380px;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+            display: none;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 10px 25px;
+            font-size: 16px;
+            background: #2a5298;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #1e3c72;
+        }
+
+        .spinner {
+            display: none;
+            margin-top: 15px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #2a5298;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-box {
+            margin-top: 20px;
+            display: none;
+            animation: fadeIn 1s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .confidence-bar {
+            width: 100%;
+            background: #ddd;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .confidence-fill {
+            height: 15px;
+            width: 0%;
+            background: linear-gradient(to right, #00c853, #64dd17);
+            transition: width 1s ease;
+        }
+
+        .probability-box {
+            margin-top: 15px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .disease-info {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #444;
+            text-align: left;
+            background: #f5f8ff;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+    <h2>🌿 AI Plant Disease Detection</h2>
+
+    <form method="POST" enctype="multipart/form-data" onsubmit="showSpinner()">
+        <label class="upload-box">
+            Click to Upload Leaf Image
+            <input type="file" name="file" accept="image/*" onchange="previewImage(event)">
+        </label>
+
+        <img id="preview">
+
+        <br>
+        <button type="submit">Analyze Image</button>
+    </form>
+
+    <div class="spinner" id="loadingSpinner"></div>
+
+    {% if result %}
+    <div class="result-box" id="resultBox">
+        <h3>Prediction: {{ result.label }}</h3>
+        <h4>Confidence: {{ result.confidence }}%</h4>
+
+        <div class="confidence-bar">
+            <div class="confidence-fill" id="confidenceFill"></div>
+        </div>
+
+        <div class="probability-box">
+            <b>All Probabilities:</b><br>
+            {% for key, value in result.probabilities.items() %}
+                {{ key }} : {{ value }}% <br>
+            {% endfor %}
+        </div>
+
+        <div class="disease-info" id="diseaseInfo"></div>
+    </div>
+    {% endif %}
+
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+
+    <footer>
+        Powered by Deep Learning (InceptionV3)
+    </footer>
+</div>
+
+<script>
+function previewImage(event) {
+    var reader = new FileReader();
+    reader.onload = function(){
+        var output = document.getElementById('preview');
+        output.src = reader.result;
+        output.style.display = "block";
+    };
+    reader.readAsDataURL(event.target.files[0]);
+}
+
+function showSpinner() {
+    document.getElementById("loadingSpinner").style.display = "block";
+}
+
+window.onload = function() {
+
+    {% if result %}
+        document.getElementById("loadingSpinner").style.display = "none";
+        document.getElementById("resultBox").style.display = "block";
+
+        let confidence = {{ result.confidence }};
+        document.getElementById("confidenceFill").style.width = confidence + "%";
+
+        let diseaseInfo = document.getElementById("diseaseInfo");
+        let label = "{{ result.label }}";
+
+        if (label === "Healthy") {
+            diseaseInfo.innerHTML =
+                "<b>Status:</b> Leaf appears healthy.<br>" +
+                "No visible signs of fungal infection or rust lesions.<br>" +
+                "Maintain proper watering and sunlight.";
+        }
+        else if (label === "Rust") {
+            diseaseInfo.innerHTML =
+                "<b>Disease:</b> Rust Infection<br>" +
+                "Caused by fungal pathogens producing orange/brown pustules.<br>" +
+                "Treatment: Remove infected leaves & apply fungicide.";
+        }
+        else if (label === "Powdery") {
+            diseaseInfo.innerHTML =
+                "<b>Disease:</b> Powdery Mildew<br>" +
+                "White powder-like fungal growth on leaf surface.<br>" +
+                "Treatment: Improve air circulation & apply sulfur-based spray.";
+        }
+        else if (label === "Uncertain") {
+            diseaseInfo.innerHTML =
+                "<b>Low Confidence Prediction</b><br>" +
+                "The model is not confident about this image.<br>" +
+                "Try uploading a clearer real-world leaf image.";
+        }
+    {% endif %}
+};
+</script>
+
+</body>
+</html>
